@@ -1,0 +1,128 @@
+"""Archaludon ex + Cinderace 规则型 agent
+
+牌组思路：
+  Cinderace 的 Explosiveness 特性可以在开局设置阶段把它背面朝上放到战斗场。
+  第 1 回合用 Turbo Flare（{C}=50）从牌库给后场 Duraludon 加速最多 3 张基本能量。
+  Duraludon 从手牌进化为 Archaludon ex 时会触发 Assemble Alloy，
+  从弃牌区给金属宝可梦附加最多 2 张基本金属能量。
+  Metal Defender（{M}{M}{M}=220）是主力攻击，下个回合不计算弱点。
+  Duraludon 不进化也可以直接使用 Raging Hammer
+  （{M}{M}{C}=80 + 每个伤害指示物 10 点伤害）。
+  Relicanth 的 Memory Dive 还能让进化后的 Archaludon ex 使用进化前的 Raging Hammer。
+  Hero's Cape 提供 +100 HP（Archaludon ex 可到 HP400）。
+  Full Metal Lab 让金属宝可梦受到的攻击伤害减少 30。
+
+宝可梦：
+  Duraludon (169)      - 基础金属 HP130。Hammer In {M}=30。
+                         Raging Hammer {M}{M}{C}=80+10*伤害指示物数量。
+  Archaludon ex (190)  - Duraludon 的 1 阶进化，HP300。Assemble Alloy：
+                         从手牌进化时，从弃牌区附加最多 2 张金属能量。
+                         Metal Defender {M}{M}{M}=220，下个回合不计算弱点。
+  Cinderace (666)      - 2 阶 HP160。Explosiveness：开局手牌中有它时，
+                         可以在设置阶段背面朝上放到战斗场。
+                         Turbo Flare {C}=50，从牌库给后场宝可梦附加最多 3 张基本能量。
+  Relicanth (57)       - 基础 HP100。Memory Dive：进化宝可梦可以使用进化前的招式，
+                         也就是让 Archaludon ex 能用 Raging Hammer。
+
+训练家：
+  Poke Pad (1152), Ultra Ball (1121), Pokegear 3.0 (1122), Night Stretcher (1097),
+  Jumbo Ice Cream (1147), Hero's Cape (1159), Boss's Orders (1182),
+  Explorer's Guidance (1185), Lillie's Determination (1227), Full Metal Lab (1244) x4。
+
+能量：基本金属能量 (8) x11
+
+打分系统：
+  设置/出牌/进化/附能：1000~28000（分数越高越优先执行）
+  攻击：按伤害值打分（通常最后执行，因为攻击会结束回合）
+  负分：如果已经满足 minCount，就跳过该选项
+"""
+
+import os
+import random
+import sys
+
+try:
+    ROOT = __file__
+except NameError:
+    ROOT = None
+CG_PATH = "/kaggle_simulations/agent"
+for p in ([os.path.dirname(os.path.abspath(ROOT))] if ROOT else []) + [CG_PATH]:
+    if p and p not in sys.path and os.path.isdir(p):
+        sys.path.insert(0, p)
+
+from cg.api import (
+    AreaType,
+    LogType,
+    OptionType,
+    SelectContext,
+    all_card_data,
+    to_observation_class,
+)
+
+try:
+    from cg.api import all_attack
+    ALL_ATTACKS = {a.attackId: a for a in all_attack()}
+except Exception:
+    ALL_ATTACKS = {}
+
+# ── 卡牌 ID ──
+
+DURALUDON = 169
+ARCHALUDON_EX = 190
+CINDERACE = 666
+RELICANTH = 57
+CRUSTLE_LINE = {344, 345, 532}
+STARMIE_LINE = {1030, 1031}
+LUCARIO_LINE = {677, 678}
+
+METAL_ENERGY = 8
+
+POKE_PAD = 1152
+ULTRA_BALL = 1121
+POKEGEAR = 1122
+NIGHT_STRETCHER = 1097
+JUMBO_ICE_CREAM = 1147
+HERO_CAPE = 1159
+BOSS = 1182
+EXPLORER = 1185
+LILLIE = 1227
+FULL_METAL_LAB = 1244
+
+RAGING_HAMMER = 224
+METAL_DEFENDER = 253
+
+_ATTACK_BASE_DMG = {METAL_DEFENDER: 220, 965: 50, 223: 30, 61: 30}
+
+_SETUP_ACTIVE_PRIORITY = {
+    CINDERACE: (100000, "Active: Cinderace Explosiveness"),
+    DURALUDON: (20000, "Active fallback: Duraludon"),
+    RELICANTH: (5000, "Active fallback: Relicanth"),
+}
+
+ALWAYS_SAFE_DISCARD = {METAL_ENERGY, CINDERACE}
+
+CARD_DB = {c.cardId: c for c in all_card_data()}
+
+MEGA_BRAVE = 983
+PREMIUM_POWER_PRO = 1141
+HARIYAMA_LINE = {673, 674}
+
+# 通过日志记录对手上回合使用的攻击
+_opp_last_attack_id = None
+_cur_turn_logs = []
+
+
+def _update_opp_attack_tracking(obs):
+    global _opp_last_attack_id, _cur_turn_logs
+    yi = obs.current.yourIndex
+    for entry in obs.logs:
+        if entry.type == LogType.TURN_END:
+            for prev in _cur_turn_logs:
+                if prev.type == LogType.ATTACK and getattr(prev, 'playerIndex', yi) != yi:
+                    _opp_last_attack_id = prev.attackId
+            _cur_turn_logs.clear()
+        else:
+            _cur_turn_logs.append(entry)
+
+
+# ── 场面辅助函数 ──
