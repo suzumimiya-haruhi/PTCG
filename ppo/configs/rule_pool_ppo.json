@@ -1,0 +1,88 @@
+{
+  "run_name": "micro_dagger_vhead_rule_pool_ppo_v2_logprob_fix",
+  "seed": 20260718,
+  "start_checkpoint": "value_mse/runs/micro_dagger_mixed_pool_value_mse_v1/checkpoints/value_mse_best_val_mse_rank1.pt",
+  "iterations": 100000,
+  "games_per_iteration": 128,
+  "eval_before_training": true,
+  "eval_every": 50,
+  "eval_games_each": 100,
+  "ppo_epochs": 4,
+  "batch_size": 350,
+  "learning_rate": 0.00005,
+  "weight_decay": 0.01,
+  "temperature": 1.0,
+  "clip_eps": 0.2,
+  "gamma": 1.0,
+  "gae_lambda": 0.95,
+  "entropy_coef": 0.02,
+  "value_coef": 0.5,
+  "bc_coef": 0.01,
+  "base_kl_coef": 0.01,
+  "target_kl": 0.02,
+  "kl_stop_metric": "approx_kl",
+  "value_tanh": true,
+  "max_grad_norm": 1.0,
+  "latest_every": 1,
+  "best_keep": 3,
+  "torch_num_threads": 4,
+  "reward": {
+    "win": 1.0,
+    "loss": -1.0,
+    "draw": 0.0,
+    "invalid_action": -1.0,
+    "prize_taken": 0.0,
+    "prize_lost": 0.0,
+    "damage_dealt_scale": 0.0,
+    "damage_taken_scale": 0.0,
+    "damage_step_cap": 0.0,
+    "step_clip": 0.0
+  },
+  "opponents": [
+    {
+      "key": "original_archaludon",
+      "name": "original_archaludon",
+      "path": "agents/original_archaludon"
+    },
+    {
+      "key": "original_manual_edit",
+      "name": "original_manual_edit",
+      "path": "agents/original_manual_edit"
+    },
+    {
+      "key": "archaludon_v4",
+      "name": "archaludon_v4",
+      "path": "agents/archaludon_v4"
+    },
+    {
+      "key": "official_dragapult_ex",
+      "name": "official_dragapult_ex",
+      "path": "agents/official_dragapult_ex"
+    },
+    {
+      "key": "official_iono",
+      "name": "official_iono",
+      "path": "agents/official_iono"
+    },
+    {
+      "key": "official_mega_abomasnow_ex",
+      "name": "official_mega_abomasnow_ex",
+      "path": "agents/official_mega_abomasnow_ex"
+    },
+    {
+      "key": "official_mega_lucario_ex",
+      "name": "official_mega_lucario_ex",
+      "path": "agents/official_mega_lucario_ex"
+    },
+    {
+      "key": "community_lucario",
+      "name": "community_lucario",
+      "path": "agents/community_lucario"
+    },
+    {
+      "key": "community_alakazam",
+      "name": "community_alakazam",
+      "path": "agents/community_alakazam"
+    }
+  ]
+}
